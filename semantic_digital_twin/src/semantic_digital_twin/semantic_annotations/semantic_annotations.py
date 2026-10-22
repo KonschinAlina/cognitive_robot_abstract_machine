@@ -2025,7 +2025,7 @@ class Tower(HasDoors):
     """
 
 @dataclass(eq=False)
-class Rotor(HasMechanicalJoint, SemanticAnnotation):
+class Rotor(SemanticAnnotation):
     """
     The rotating part of a wind turbine that catches the
     wind and converts its kinematic energy into mechanical rotational motion.

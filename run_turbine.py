@@ -49,7 +49,7 @@ def main():
     urdf_path = base_dir / "semantic_digital_twin" / "resources" / "urdf" / "windturbine.urdf"
     
     # Parse urdf to world
-    world = URDFParser.from_file(str(urdf_path2), "windturbine.urdf").parse()
+    world = URDFParser.from_file(str(urdf_path), "windturbine.urdf").parse()
     #print(world.bodies)
 
     # Get body 'MainShaft' from world
