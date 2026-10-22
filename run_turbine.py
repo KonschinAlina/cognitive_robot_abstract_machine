@@ -45,9 +45,9 @@ def main():
     rviz_node = RVizBridgeNode()
 
     # Path to urdf file
-    #urdf_path = Path("/home/alina-kon/Schreibtisch/HiWi/windT/src/windturbine_description/urdf/windturbine.urdf")
-    urdf_path2 = Path("/home/alina-kon/Schreibtisch/HiWi/cognitive_robot_abstract_machine/semantic_digital_twin/resources/urdf/windturbine.urdf")
-
+    base_dir = Path(__file__).parent
+    urdf_path = base_dir / "semantic_digital_twin" / "resources" / "urdf" / "windturbine.urdf"
+    
     # Parse urdf to world
     world = URDFParser.from_file(str(urdf_path2), "windturbine.urdf").parse()
     #print(world.bodies)
