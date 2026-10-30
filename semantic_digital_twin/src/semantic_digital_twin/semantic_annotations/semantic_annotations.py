@@ -89,6 +89,8 @@ from semantic_digital_twin.specifications.semantic_annotations import (
 if TYPE_CHECKING:
     from semantic_digital_twin.world import World
 
+from semantic_digital_twin.semantic_annotations.assembly_state import AssemblyState
+from enum import Enum
 
 @dataclass(eq=False)
 class Furniture(SemanticAnnotation, ABC):
@@ -1950,6 +1952,9 @@ class CoffeeMachine(HasRootBody):
 
     _synonyms = {"coffe"}
 
+#########################################
+########## wind turbine #################
+
 @dataclass(eq=False)
 class Sensor(SemanticAnnotation):
     """
@@ -1966,13 +1971,66 @@ class Anemometer(Sensor):
 class Blade(SemanticAnnotation):
     """
     An aerodynamic structure that is part of a wind turbine.
+    Rotateable around its own axis by approx. 90 to 100 degrees (pitching)
     """
+    body: Optional[Body] = None
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
+
+    #def __init__(self, body: Optional[Body] = None, **kwargs):
+    #    super().__init__(**kwargs)
+    #    self.body = body
+
+    @property
+    def joint(self):
+        # Get the parent connection (=joint) used for adjusting the blade pitch angle.
+        if self.body is None:
+            return None
+
+        # Check the parent connection of the blade body
+        if hasattr(self.body, "parent_connection") and self.body.parent_connection:
+            conn_name = str(self.body.parent_connection.name).lower()
+
+            # Checks if 'blade' or 'pitch' is in the joint name (e.g. blade_1_joint)
+            if "blade" in conn_name or "pitch" in conn_name:
+                return self.body.parent_connection
+
+        return None
+
+    def rotate(self, angle):
+        # set the pitch angle for this blade (in radians)
+        # 0.0 rad = normal operation
+        # ~1.57 rad (90 deg) = feathering position
+        j = self.joint
+        #print(j)
+        if j is not None:
+            j.position = angle
+            if hasattr(self, "_world") and self._world:
+                self._world.update_forward_kinematics()
+        else:
+            print(f"No pitch joint found for blade '{self.body.name}'!")
 
 @dataclass(eq=False)
 class Brake(SemanticAnnotation):
     """
     A mechanical device or system that slows down or stops motion using friction.
     """
+    class BrakeState(Enum):
+        RELEASED = 1  # brake is open
+        ENGAGING = 2  # brake is closing
+        ENGAGED = 3   # brake is closed
+        FAULT = 4     # error
+
+    state: "BrakeState" = field(default=BrakeState.RELEASED, kw_only=True)
+
+    # returns ture if brake is active
+    @property
+    def is_active(self):
+        return self.state in (self.BrakeState.ENGAGING, self.BrakeState.ENGAGED)
+
+    # returns the state of the brake
+    @property
+    def brake_state(self):
+        return self.state
 
 @dataclass(eq=False)
 class BrakeDisc(Brake):
@@ -2023,6 +2081,8 @@ class Tower(HasDoors):
     """
     A tall, vertical structure that supports the nacelle and the rotor blades of a wind turbine.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Rotor(SemanticAnnotation):
@@ -2030,6 +2090,8 @@ class Rotor(SemanticAnnotation):
     The rotating part of a wind turbine that catches the
     wind and converts its kinematic energy into mechanical rotational motion.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class RotorLock(SemanticAnnotation):
@@ -2037,13 +2099,17 @@ class RotorLock(SemanticAnnotation):
     A mechanical safety device that physically locks the turbine's rotor in place
     to prevent it from turning.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
+
 @dataclass(eq=False)
 class RotorLockPin(SemanticAnnotation):
     """
     A mechanical safety bolt that locks the rotor of a wind turbine to prevent
     rotational movement.
     """
-
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Turbine(SemanticAnnotation):
@@ -2051,12 +2117,16 @@ class Turbine(SemanticAnnotation):
     A rotary machine that takes energy from a moving fluid and turns it into usable
     mechanical or electrical work.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Platform(SemanticAnnotation):
     """
     An elevated structure that provides a flat surface
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Hatch(SemanticAnnotation):
@@ -2064,12 +2134,17 @@ class Hatch(SemanticAnnotation):
     A small, secure opening or access door typically located on top of the nacelle
     or at the base of the tower.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Light(SemanticAnnotation):
     """
     A status indicator showing ok status or error status.
+add: welche Farbe signalisiert was?
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Transformer(SemanticAnnotation):
@@ -2077,6 +2152,8 @@ class Transformer(SemanticAnnotation):
     A specialized electrical device that increases the low-voltage electricity generated by
     a wind turbine up to a higher medium or high voltage.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class MainBearing(SemanticAnnotation):
@@ -2084,6 +2161,8 @@ class MainBearing(SemanticAnnotation):
      A heavy-duty mechanical component in the turbine's nacelle that supports the main shaft,
      rotor hub, and blades.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class YawBearing(SemanticAnnotation):
@@ -2091,6 +2170,8 @@ class YawBearing(SemanticAnnotation):
      A large mechanical slewing ring positioned at the junction between the wind turbine tower
      and the nacelle.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Grease_Collector(SemanticAnnotation):
@@ -2098,18 +2179,24 @@ class Grease_Collector(SemanticAnnotation):
     A container designed to catch and store excess grease i.e. from the main bearing,
     generator bearing.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Bolt(SemanticAnnotation):
     """
     A fastener to hold together multiple components.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Foundation(SemanticAnnotation):
     """
     A heavy structural base that anchors a wind turbine to the ground or seabed.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Shaft(SemanticAnnotation):
@@ -2117,6 +2204,8 @@ class Shaft(SemanticAnnotation):
     A rotation mechanical component that transfers the kinematic energy captured by the rotor blades
     to the generator or gearbox.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class MainShaft(SemanticAnnotation):
@@ -2124,28 +2213,25 @@ class MainShaft(SemanticAnnotation):
     A large, heavy steel cylinder that connects the rotor hub to the gearbox or generator.
     """
     body: Optional[Body] = None
-    def __init__(self, body: Optional[Body] = None, **kwargs):
-        super().__init__(**kwargs)
-        self.body = body
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
-    # get the joint that moves the main shaft body
+    # returns the joint that moves the main shaft body
     @property
     def joint(self):
 
         if self.body is None:
             return None
 
-        # 1. check directly from parent connection(=Joint) of body
+        # checks directly from parent connection(=Joint) of body
         if hasattr(self.body, "parent_connection") and self.body.parent_connection:
             conn_name = str(self.body.parent_connection.name).lower()
             # get the parent that has main_shaft in name
             if "main_shaft" in conn_name:
                 return self.body.parent_connection
-
         return None
 
     def rotate(self, angle):
-        # set angle position of main shaft joint
+        # sets the angle position of main shaft joint
         j = self.joint
         if j is not None:
             j.position = angle
@@ -2160,6 +2246,7 @@ class FastShaft(Shaft):
     """
     A secondary rotating rod that connects the gearbox output to the generator.
     Spins at high speed.
+    Reaches from brake to generator.
     """
 
 @dataclass(eq=False)
@@ -2167,6 +2254,8 @@ class Coupling(SemanticAnnotation):
     """
     A mechanical device that connects two rotating shafts.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Converter(SemanticAnnotation):
@@ -2174,23 +2263,22 @@ class Converter(SemanticAnnotation):
     A power electronics system that transforms the energy produced by the generator into
     a stable electrical energy.
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class Controller(SemanticAnnotation):
     """
-
     """
 
 @dataclass(eq=False)
 class GroundController(Controller):
     """
-
     """
 
 @dataclass(eq=False)
 class HydraulicUnit(SemanticAnnotation):
     """
-    --> Untertypen?
     """
 
 
@@ -2200,17 +2288,17 @@ class CoolingUnit(SemanticAnnotation):
     Art der Kühlung? Untertypen?
     Zustand: coolant level
     """
+    # shows the assembly state
+    assembly_state: AssemblyState = field(default=AssemblyState.UNASSEMBLED, kw_only=True)
 
 @dataclass(eq=False)
 class NacelleCoolingUnit(CoolingUnit):
     """
-    Zustand:
     """
 
 @dataclass(eq=False)
 class TransformerCoolingUnit(CoolingUnit):
     """
-    Zustand:
     """
 
 
@@ -2223,20 +2311,16 @@ class Bedplate(SemanticAnnotation):
 @dataclass(eq=False)
 class ConverterCabinet(Cabinet, HasDoors):
     """
-
     """
 
 @dataclass(eq=False)
 class ControllerCabinet(Cabinet, HasDoors):
     """
-
     """
 
 @dataclass(eq=False)
 class Lift(SemanticAnnotation):
     """
-
-    Zustand: Ebene
     """
 
 
